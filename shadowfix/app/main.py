@@ -75,14 +75,29 @@ async def log_requests(request: Request, call_next):
 # 2. Rate Limiting
 init_app_limiter(app)
 
-# 3. CORS Setup (Outermost Layer)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# 3. Robust CORS Middleware (Manual fallback for Cloud Deployments)
+@app.middleware("http")
+async def add_cors_headers(request: Request, call_next):
+    # Handle Preflight OPTIONS requests
+    if request.method == "OPTIONS":
+        response = JSONResponse(
+            content="OK",
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, DELETE",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Max-Age": "86400",
+            }
+        )
+        return response
+
+    # Handle actual requests
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT, DELETE"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 # --- Standardized Error Handling ---
 @app.exception_handler(ValueError)
