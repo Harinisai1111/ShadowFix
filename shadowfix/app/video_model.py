@@ -144,9 +144,7 @@ def predict_video(video_bytes: bytes, suffix=".mp4"):
         logger.warning("No forensic labels matched in video. Defaulting to REAL.")
         return {"overall_probability": 0.0}
     
-    # Aggregate: Use 75th percentile to detect if any significant part is fake
-    scores.sort()
-    idx = int(len(scores) * 0.75)
-    final_score = scores[min(idx, len(scores)-1)]
-    logger.info("Final Video Aggregated Score: %f (from %d frames)", final_score, len(scores))
+    # Aggregate: Use the MAXIMUM score (Any frame fake = Suspect video)
+    final_score = max(scores)
+    logger.info("Final Video Aggregated Score: %f (MAX from %d frames)", final_score, len(scores))
     return {"overall_probability": float(final_score)}
