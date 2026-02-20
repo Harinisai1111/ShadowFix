@@ -6,22 +6,25 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Model for still images: prithivMLmods (Highly stable on HF Inference API)
-MODEL_ID = "prithivMLmods/Deep-Fake-Detector-Model"
+# Sanitized Token
+HF_TOKEN = settings.HF_API_TOKEN.strip() if settings.HF_API_TOKEN else ""
+
+# Model for still images: dima806 (High activity/likely serverless support)
+MODEL_ID = "dima806/deepfake_vs_real_image_detection"
 API_URL = f"https://api-inference.huggingface.co/models/{MODEL_ID}"
 
 def predict_image(image: Image.Image) -> float:
     """Hybrid Inference: Tries Cloud API first, falls back to Local Model if available."""
     
     # Check for token (Safety Log)
-    if not settings.HF_API_TOKEN:
+    if not HF_TOKEN:
         logger.warning("HF_API_TOKEN is missing! Inference may be restricted.")
     else:
-        logger.info("HF_API_TOKEN is present (Length: %d)", len(settings.HF_API_TOKEN))
+        logger.info("HF_API_TOKEN is present (Length: %d)", len(HF_TOKEN))
 
     # 1. Try Cloud Inference API
     headers = {
-        "Authorization": f"Bearer {settings.HF_API_TOKEN}",
+        "Authorization": f"Bearer {HF_TOKEN}",
         "Content-Type": "image/jpeg"
     }
     

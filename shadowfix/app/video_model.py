@@ -10,8 +10,11 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Sanitized Token
+HF_TOKEN = settings.HF_API_TOKEN.strip() if settings.HF_API_TOKEN else ""
+
 # Video frame model (Highly stable)
-VIDEO_MODEL_ID = "prithivMLmods/Deep-Fake-Detector-Model"
+VIDEO_MODEL_ID = "dima806/deepfake_vs_real_image_detection"
 API_URL = f"https://api-inference.huggingface.co/models/{VIDEO_MODEL_ID}"
 
 def query_hf_api(image: Image.Image):
@@ -21,7 +24,7 @@ def query_hf_api(image: Image.Image):
     data = buffered.getvalue()
     
     headers = {
-        "Authorization": f"Bearer {settings.HF_API_TOKEN}",
+        "Authorization": f"Bearer {HF_TOKEN}",
         "Content-Type": "image/jpeg"
     }
 
