@@ -75,14 +75,13 @@ async def log_requests(request: Request, call_next):
 # 2. Rate Limiting
 init_app_limiter(app)
 
-# 3. CORS Setup (Added LAST to be OUTERMOST)
+# 3. CORS Setup (Outermost)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
-    expose_headers=["*"],
 )
 
 # --- Standardized Error Handling ---

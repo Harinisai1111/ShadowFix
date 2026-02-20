@@ -15,14 +15,43 @@ VIDEO_MODEL_ID = "Dima806/deepfake_vs_real_image_detection"
 API_URL = f"https://api-inference.huggingface.co/models/{VIDEO_MODEL_ID}"
 
 def query_hf_api(image: Image.Image):
-    """Internal helper for HF API frame classification."""
+    """Internal helper for HF API frame classification with retries."""
     buffered = io.BytesIO()
     image.save(buffered, format="JPEG")
-    headers = {"Authorization": f"Bearer {settings.HF_API_TOKEN}"}
+    data = buffered.getvalue()
     
-    response = requests.post(API_URL, headers=headers, data=buffered.getvalue(), timeout=10)
-    response.raise_for_status()
-    return response.json()
+    headers = {
+        "Authorization": f"Bearer {settings.HF_API_TOKEN}",
+        "Content-Type": "image/jpeg"
+    }
+
+    # Try standard API endpoint first
+    endpoints = [
+        API_URL,
+        f"https://api-inference.huggingface.co/pipeline/image-classification/{VIDEO_MODEL_ID}"
+    ]
+    
+    last_error = "Unknown"
+    for url in endpoints:
+        try:
+            logger.info("Attempting video frame inference at %s", url)
+            response = requests.post(url, headers=headers, data=data, timeout=15)
+            
+            if response.status_code == 200:
+                results = response.json()
+                if isinstance(results, dict) and "error" in results:
+                    last_error = results["error"]
+                    continue
+                return results
+            
+            last_error = f"{response.status_code}: {response.text[:100]}"
+            logger.warning("Video endpoint %s failed: %s", url, last_error)
+            
+        except Exception as e:
+            last_error = str(e)
+            logger.error("Request to %s failed: %s", url, e)
+
+    raise ValueError(f"Video Inference Engine Failed for {VIDEO_MODEL_ID}. Last Error: {last_error}")
 
 def temporary_video_file(video_bytes: bytes, suffix=".mp4"):
     """Privacy safe temporary file creation."""
@@ -67,23 +96,47 @@ def extract_frames(video_bytes: bytes, n=10, suffix=".mp4"):
     return frames
 
 def predict_video(video_bytes: bytes, suffix=".mp4"):
-    """Video forensic analysis using Cloud Inference API."""
+    """Hybrid Video Analysis: Cloud First, Local Fallback."""
     frames = extract_frames(video_bytes, suffix=suffix)
     if not frames:
         raise ValueError("Video forensic extraction failed.")
         
     scores = []
+    use_local = False
+    
+    # Try Cloud for first frame to test connection
     try:
-        for frame in frames:
-            try:
-                results = query_hf_api(frame)
+        test_res = query_hf_api(frames[0])
+        # If we got here, cloud works
+    except Exception as e:
+        logger.warning("Video Cloud API blocked, attempting local fallback... Error: %s", e)
+        use_local = True
+
+    try:
+        if use_local:
+            from transformers import pipeline
+            if not hasattr(predict_video, "_local_pipe"):
+                predict_video._local_pipe = pipeline("image-classification", model=VIDEO_MODEL_ID)
+            
+            for frame in frames:
+                results = predict_video._local_pipe(frame)
                 for item in results:
                     if "fake" in item["label"].lower():
                         scores.append(item["score"])
                         break
-            except Exception as e:
-                logger.error("Frame Inference Error: %s", e)
-                continue
+        else:
+            for frame in frames:
+                try:
+                    results = query_hf_api(frame)
+                    for item in results:
+                        if "fake" in item["label"].lower():
+                            scores.append(item["score"])
+                            break
+                except Exception as e:
+                    logger.error("Frame Cloud Error: %s", e)
+                    continue
+    except ImportError:
+        raise ValueError("Video Inference Engine Failed. Cloud API check failed and 'transformers' not found for local fallback.")
     finally:
         del frames
         gc.collect()

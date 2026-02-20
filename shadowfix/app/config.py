@@ -29,6 +29,6 @@ class Settings(BaseSettings):
     ALLOWED_EXTENSIONS: set = {".jpg", ".jpeg", ".png", ".mp4", ".webm"}
     ALLOWED_MIME_TYPES: set = {"image/jpeg", "image/png", "video/mp4", "video/webm"}
     
-    model_config = SettingsConfigDict(case_sensitive=True)
+    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
 
 settings = Settings()
