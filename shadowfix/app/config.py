@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     
     # API Key for M2M integrations
     X_API_KEY: str = os.getenv("X_API_KEY", "shadowfix_internal_key_v2")
+    HF_API_TOKEN: str = os.getenv("HF_API_TOKEN", "")
     
     # Rate Limiting
     RATE_LIMIT_AUTH: str = "10 per minute"

@@ -1,36 +1,41 @@
 import logging
 import io
-from functools import lru_cache
-from typing import Tuple
-
-import torch
+import requests
 from PIL import Image
-from transformers import pipeline
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 # Model for still images: SigLIP (SOTA AI detector)
 MODEL_ID = "Ateeqq/ai-vs-human-image-detector"
-
-@lru_cache(maxsize=1)
-def _get_pipeline():
-    """Load and cache the pipeline on CPU."""
-    logger.info("Initializing Zero-Retention Signature Model...")
-    return pipeline("image-classification", model=MODEL_ID, device=-1)
+API_URL = f"https://api-inference.huggingface.co/models/{MODEL_ID}"
 
 def predict_image(image: Image.Image) -> float:
-    """Runs inference in-memory."""
-    clf = _get_pipeline()
+    """Runs inference via Hugging Face API."""
+    if not settings.HF_API_TOKEN:
+        logger.warning("HF_API_TOKEN not set. Inference might fail or be rate-limited.")
     
+    headers = {"Authorization": f"Bearer {settings.HF_API_TOKEN}"}
+    
+    # Pre-process image to bytes
+    img_byte_arr = io.BytesIO()
     if image.mode != "RGB":
         image = image.convert("RGB")
+    image.save(img_byte_arr, format='JPEG')
+    data = img_byte_arr.getvalue()
+
+    try:
+        response = requests.post(API_URL, headers=headers, data=data, timeout=10)
+        response.raise_for_status()
+        results = response.json()
         
-    results = clf(image)
-    
-    # Process results strictly in memory
-    for item in results:
-        label = item.get("label", "").lower()
-        if any(kw in label for kw in ("fake", "ai", "artificial", "generated")):
-            return float(item["score"])
-            
-    return float(results[0]["score"])
+        # Process results from HF API
+        for item in results:
+            label = item.get("label", "").lower()
+            if any(kw in label for kw in ("fake", "ai", "artificial", "generated")):
+                return float(item["score"])
+        
+        return float(results[0]["score"])
+    except Exception as exc:
+        logger.error("HF API Inference Failed: %s", exc)
+        raise ValueError(f"Inference Engine Error: {str(exc)}")

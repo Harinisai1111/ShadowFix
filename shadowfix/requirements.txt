@@ -1,7 +1,5 @@
 fastapi
 uvicorn[standard]
-transformers
-torch
 pillow
 python-multipart
 opencv-python-headless
@@ -10,3 +8,4 @@ python-jose[cryptography]
 bcrypt
 slowapi
 gunicorn
+requests
