@@ -149,10 +149,10 @@ async def analyze_image(
         content = await file.read()
         pil_img = bytes_to_pil(content)
         
-        # 10s Inference Timeout
+        # 120s Inference Timeout (Allow for local model loading)
         probability = await asyncio.wait_for(
             asyncio.to_thread(predict_image, pil_img),
-            timeout=10.0
+            timeout=120.0
         )
         
         risk, flag = classify_risk(probability)
@@ -193,10 +193,10 @@ async def analyze_video(
     try:
         content = await file.read()
         
-        # 10s Inference Timeout
+        # 120s Inference Timeout (Allow for local model loading)
         result = await asyncio.wait_for(
             asyncio.to_thread(predict_video, content, suffix=suffix),
-            timeout=10.0
+            timeout=120.0
         )
         
         risk, flag = classify_risk(result["overall_probability"])
