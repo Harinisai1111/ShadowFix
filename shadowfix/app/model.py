@@ -12,16 +12,21 @@ MODEL_ID = "dima806/deepfake_vs_real_image_detection"
 def predict_image(image: Image.Image) -> float:
     """Uses official HF InferenceClient with strict token sanitization."""
     
-    # 1. Robust Token Sanitization (Removes quotes, whitespace, and hidden garbage)
+    # 1. Robust Token Sanitization
     raw_token = settings.HF_API_TOKEN or ""
     sanitized_token = raw_token.strip().replace('"', '').replace("'", "")
     
+    # EXTRA LOUD DIAGNOSTICS
+    logger.info("***********************************************")
     if sanitized_token:
-        # Safe logging for debugging format issues
-        safe_display = f"{sanitized_token[:4]}...{sanitized_token[-4:]}"
-        logger.info("HF_API_TOKEN sanitized: %s (Length: %d)", safe_display, len(sanitized_token))
+        safe_display = f"{sanitized_token[:6]}...{sanitized_token[-4:]}"
+        is_hf_prefixed = sanitized_token.startswith("hf_")
+        logger.info("HF_API_TOKEN: %s (Prefixed: %s, Length: %d)", safe_display, is_hf_prefixed, len(sanitized_token))
+        if not is_hf_prefixed:
+            logger.error("!!! WARNING: Token does NOT start with 'hf_'. It is likely INVALID.")
     else:
-        logger.warning("HF_API_TOKEN is MISSING or EMPTY!")
+        logger.error("!!! CRITICAL: HF_API_TOKEN is EMPTY in settings!")
+    logger.info("***********************************************")
     
     try:
         # 2. Initialize Client
