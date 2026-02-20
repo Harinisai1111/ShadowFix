@@ -1,3 +1,6 @@
+import logging
+import io
+from PIL import Image
 from huggingface_hub import InferenceClient
 from app.config import settings
 
