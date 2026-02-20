@@ -21,8 +21,8 @@ from app.auth import (
 )
 from app.security import validate_api_key, add_security_headers, api_key_header
 from app.rate_limiter import init_app_limiter, limiter
-from app.model import predict_image, _get_pipeline
-from app.video_model import predict_video, _get_video_pipeline
+from app.model import predict_image
+from app.video_model import predict_video
 from app.utils import (
     bytes_to_pil,
     classify_risk,
@@ -49,10 +49,8 @@ def guest_key_func(request: Request):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Warm-up models on startup."""
-    logger.info("Initializing SHADOWFIX Forensic Suite...")
-    _get_pipeline()
-    _get_video_pipeline()
+    """Wait for readiness."""
+    logger.info("Initializing SHADOWFIX Featherweight Suite...")
     yield
     logger.info("SHADOWFIX shutting down securely.")
 
