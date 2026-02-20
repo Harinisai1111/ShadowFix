@@ -59,21 +59,19 @@ def temporary_video_file(video_bytes: bytes, suffix=".mp4"):
             os.unlink(tmp_path)
 
 def extract_frames(video_bytes: bytes, n=10, suffix=".mp4"):
-    """Extracts frames with sampling logic."""
+    """Extracts frames with sampling logic across the ENTIRE video."""
     frames = []
-    # Usage of generator-like pattern for memory safety
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(video_bytes)
         tmp_path = tmp.name
     
     try:
         cap = cv2.VideoCapture(tmp_path)
-        fps = cap.get(cv2.CAP_PROP_FPS)
         total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        if fps > 0: total = min(total, int(5 * fps))
         if total <= 0: return []
         
-        n = min(n, 10)
+        # Sample n frames across the WHOLE video
+        n = min(n, 12)
         indices = [int(i * (total / n)) for i in range(n)]
         
         for idx in indices:
@@ -89,7 +87,7 @@ def extract_frames(video_bytes: bytes, n=10, suffix=".mp4"):
     return frames
 
 def predict_video(video_bytes: bytes, suffix=".mp4"):
-    """Hybrid Video Analysis: Cloud First, Local Fallback."""
+    """Enhanced Video Analysis: Global sampling and inclusive label matching."""
     frames = extract_frames(video_bytes, suffix=suffix)
     if not frames:
         raise ValueError("Video forensic extraction failed.")
@@ -97,45 +95,58 @@ def predict_video(video_bytes: bytes, suffix=".mp4"):
     scores = []
     use_local = False
     
-    # Try Cloud for first frame to test connection
+    # 1. Connectivity Check
     try:
         test_res = query_hf_api(frames[0])
-        # If we got here, cloud works
+        if test_res is None: raise ConnectionError("Cloud API returned None")
     except Exception as e:
-        logger.warning("Video Cloud API blocked, attempting local fallback... Error: %s", e)
+        logger.warning("Video Cloud API blocked, attempting local fallback... %s", e)
         use_local = True
 
+    # 2. Forensic Loop
+    FAKE_KEYWORDS = ("fake", "ai", "artificial", "generated")
+    
     try:
         if use_local:
             from transformers import pipeline
             if not hasattr(predict_video, "_local_pipe"):
                 predict_video._local_pipe = pipeline("image-classification", model=VIDEO_MODEL_ID)
             
-            for frame in frames:
+            for i, frame in enumerate(frames):
                 results = predict_video._local_pipe(frame)
                 for item in results:
-                    if "fake" in item["label"].lower():
+                    label = item["label"].lower()
+                    if any(kw in label for kw in FAKE_KEYWORDS):
                         scores.append(item["score"])
                         break
         else:
-            for frame in frames:
+            for i, frame in enumerate(frames):
                 try:
                     results = query_hf_api(frame)
+                    if not results or not isinstance(results, list): continue
+                    
+                    logger.info("Frame %d Results: %s", i, results)
                     for item in results:
-                        if "fake" in item["label"].lower():
+                        label = item.get("label", "").lower()
+                        if any(kw in label for kw in FAKE_KEYWORDS):
                             scores.append(item["score"])
                             break
                 except Exception as e:
-                    logger.error("Frame Cloud Error: %s", e)
+                    logger.error("Frame %d Error: %s", i, e)
                     continue
     except ImportError:
-        raise ValueError("Video Inference Engine Failed. Cloud API check failed and 'transformers' not found for local fallback.")
+        raise ValueError("Forensic Engine Failure. Cloud API failed and Local model (transformers) missing.")
     finally:
         del frames
         gc.collect()
-                
-    if not scores: return {"overall_probability": 0.0}
+                 
+    if not scores: 
+        logger.warning("No forensic labels matched in video. Defaulting to REAL.")
+        return {"overall_probability": 0.0}
     
+    # Aggregate: Use 75th percentile to detect if any significant part is fake
     scores.sort()
     idx = int(len(scores) * 0.75)
-    return {"overall_probability": scores[min(idx, len(scores)-1)]}
+    final_score = scores[min(idx, len(scores)-1)]
+    logger.info("Final Video Aggregated Score: %f (from %d frames)", final_score, len(scores))
+    return {"overall_probability": float(final_score)}
