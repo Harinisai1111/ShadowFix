@@ -6,26 +6,26 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Sanitized Token
-HF_TOKEN = settings.HF_API_TOKEN.strip() if settings.HF_API_TOKEN else ""
-if HF_TOKEN:
-    # Safe logging for debugging format issues
-    safe_token = f"{HF_TOKEN[:4]}...{HF_TOKEN[-4:]}"
-    logger.info("HF_API_TOKEN detected: %s (Length: %d)", safe_token, len(HF_TOKEN))
-else:
-    logger.warning("HF_API_TOKEN is empty!")
-
 # Model for still images (Using a highly stable official client)
 MODEL_ID = "dima806/deepfake_vs_real_image_detection"
 
 def predict_image(image: Image.Image) -> float:
-    """Uses official HF InferenceClient for high reliability."""
+    """Uses official HF InferenceClient with strict token sanitization."""
     
-    if not HF_TOKEN:
-        logger.warning("HF_API_TOKEN is missing!")
+    # 1. Robust Token Sanitization (Removes quotes, whitespace, and hidden garbage)
+    raw_token = settings.HF_API_TOKEN or ""
+    sanitized_token = raw_token.strip().replace('"', '').replace("'", "")
+    
+    if sanitized_token:
+        # Safe logging for debugging format issues
+        safe_display = f"{sanitized_token[:4]}...{sanitized_token[-4:]}"
+        logger.info("HF_API_TOKEN sanitized: %s (Length: %d)", safe_display, len(sanitized_token))
+    else:
+        logger.warning("HF_API_TOKEN is MISSING or EMPTY!")
     
     try:
-        client = InferenceClient(model=MODEL_ID, token=HF_TOKEN)
+        # 2. Initialize Client
+        client = InferenceClient(model=MODEL_ID, token=sanitized_token)
         
         img_byte_arr = io.BytesIO()
         if image.mode != "RGB":
@@ -34,12 +34,12 @@ def predict_image(image: Image.Image) -> float:
         
         logger.info("Requesting inference for %s via InferenceClient", MODEL_ID)
         
-        # InferenceClient.image_classification handles everything (URL, headers, binary data)
+        # 3. Call API
         results = client.image_classification(img_byte_arr.getvalue())
         
         logger.info("Inference Results: %s", results)
         
-        # Safety parse
+        # 4. Parse Results
         if not results or not isinstance(results, list):
             raise ValueError(f"Invalid API response style: {results}")
 
@@ -48,7 +48,6 @@ def predict_image(image: Image.Image) -> float:
             if any(kw in label for kw in ("fake", "ai", "artificial", "generated")):
                 return float(item["score"])
         
-        # Fallback to the first result's score if no keywords match
         return float(results[0]["score"])
 
     except Exception as e:

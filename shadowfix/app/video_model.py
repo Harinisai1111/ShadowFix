@@ -10,16 +10,18 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Sanitized Token
-HF_TOKEN = settings.HF_API_TOKEN.strip() if settings.HF_API_TOKEN else ""
-
 # Video frame model (Highly stable)
 VIDEO_MODEL_ID = "dima806/deepfake_vs_real_image_detection"
 
 def query_hf_api(image: Image.Image):
-    """Internal helper for HF API frame classification using InferenceClient."""
+    """Internal helper for HF API frame classification using InferenceClient with sanitization."""
+    
+    # Robust Token Sanitization
+    raw_token = settings.HF_API_TOKEN or ""
+    sanitized_token = raw_token.strip().replace('"', '').replace("'", "")
+    
     try:
-        client = InferenceClient(model=VIDEO_MODEL_ID, token=HF_TOKEN)
+        client = InferenceClient(model=VIDEO_MODEL_ID, token=sanitized_token)
         
         buffered = io.BytesIO()
         image.save(buffered, format="JPEG")
