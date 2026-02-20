@@ -11,8 +11,8 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 # Model Configuration
-VIDEO_MODEL_ID = "dima806/deepfake_vs_real_image_detection"
-VIDEO_API_URL = f"https://api-inference.huggingface.co/models/{VIDEO_MODEL_ID}"
+VIDEO_MODEL_ID = "umm-maybe/AI-image-detector"
+VIDEO_API_URL = f"https://router.huggingface.co/hf-inference/models/{VIDEO_MODEL_ID}"
 
 def query_hf_api(image: Image.Image):
     """Internal helper for HF API frame classification using direct requests."""

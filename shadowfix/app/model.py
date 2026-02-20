@@ -7,8 +7,8 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 # Model Configuration
-MODEL_ID = "dima806/deepfake_vs_real_image_detection"
-API_URL = f"https://api-inference.huggingface.co/models/{MODEL_ID}"
+MODEL_ID = "umm-maybe/AI-image-detector"
+API_URL = f"https://router.huggingface.co/hf-inference/models/{MODEL_ID}"
 
 def predict_image(image: Image.Image) -> float:
     """Uses direct requests for maximum reliability and explicit header control."""
