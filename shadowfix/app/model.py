@@ -6,8 +6,8 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Model for still images: SigLIP (SOTA AI detector)
-MODEL_ID = "Ateeqq/ai-vs-human-image-detector"
+# Model for still images: umm-maybe (Highly reliable on HF Inference API)
+MODEL_ID = "umm-maybe/AI-image-detector"
 API_URL = f"https://api-inference.huggingface.co/models/{MODEL_ID}"
 
 def predict_image(image: Image.Image) -> float:

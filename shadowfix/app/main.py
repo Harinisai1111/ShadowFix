@@ -66,10 +66,10 @@ app = FastAPI(
 
 @app.middleware("http")
 async def unified_middleware(request: Request, call_next):
-    # 1. HIGH VISIBILITY LOGGING
-    logger.info(">>> [PORT CHECK] Incoming %s %s", request.method, request.url.path)
+    # 1. Logging
+    logger.info("Incoming %s %s", request.method, request.url.path)
     
-    # 2. MANUAL CORS PREFLIGHT (Bypass standard middleware for reliability)
+    # 2. CORS PREFLIGHT
     if request.method == "OPTIONS":
         return JSONResponse(
             content="CORS_PREFLIGHT_OK",
@@ -85,11 +85,11 @@ async def unified_middleware(request: Request, call_next):
     # 3. ACTUAL REQUEST EXECUTION
     try:
         response = await call_next(request)
-        # 4. INJECT CORS HEADERS INTO EVERY RESPONSE
+        # 4. INJECT CORS HEADERS
         response.headers["Access-Control-Allow-Origin"] = "*"
         response.headers["Access-Control-Allow-Methods"] = "*"
         response.headers["Access-Control-Allow-Headers"] = "*"
-        logger.info("<<< [PORT CHECK] Outgoing %s (Status %s)", request.url.path, response.status_code)
+        logger.info("Outgoing %s (Status %s)", request.url.path, response.status_code)
         return response
     except Exception as e:
         logger.error("!!! CRITICAL ERROR: %s", str(e), exc_info=True)
