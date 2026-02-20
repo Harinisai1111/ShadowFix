@@ -96,9 +96,20 @@ const Analyzer = () => {
         try {
             const token = await getToken();
             const endpoint = mode === 'image' ? '/analyze-image' : '/analyze-video';
-            let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            // Ensure API URL is correctly configured
+            let apiUrl = import.meta.env.VITE_API_URL;
+
+            // Helpful logging for deployment debugging
+            if (!apiUrl) {
+                console.warn("VITE_API_URL is not set. Falling back to localhost.");
+                apiUrl = 'http://localhost:8000';
+            }
+
             // Clean trailing slash if exists
             apiUrl = apiUrl.replace(/\/$/, '');
+
+            console.log(`Sending request to: ${apiUrl}${endpoint}`);
+
             const response = await fetch(`${apiUrl}${endpoint}`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
