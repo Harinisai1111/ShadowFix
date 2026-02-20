@@ -62,30 +62,17 @@ app = FastAPI(
     redoc_url="/api/redoc"
 )
 
-# --- Security & Rate Limiting ---
-init_app_limiter(app)
-
-@app.middleware("http")
-async def apply_security_headers(request: Request, call_next):
-    # Let CORSMiddleware (added below) handle preflights purely
-    if request.method == "OPTIONS":
-        return await call_next(request)
-        
-    try:
-        response = await call_next(request)
-        return add_security_headers(response)
-    except Exception as exc:
-        raise exc
-
-# --- CORS Setup (Added LAST to be processed FIRST on requests) ---
+# 1. CORS Setup (Outermost)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Temporarily open to debug preflight blocking
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_origins=["*"],
+    allow_credentials=False,  # Set to False when allow_origins=["*"]
+    allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
 )
+
+# 2. Rate Limiting
+init_app_limiter(app)
 
 # 4. Standardized Error Handling
 @app.exception_handler(ValueError)
