@@ -10,8 +10,8 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Video frame model (also using umm-maybe for consistency)
-VIDEO_MODEL_ID = "umm-maybe/AI-image-detector"
+# Video frame model (Highly stable)
+VIDEO_MODEL_ID = "prithivMLmods/Deep-Fake-Detector-Model"
 API_URL = f"https://api-inference.huggingface.co/models/{VIDEO_MODEL_ID}"
 
 def query_hf_api(image: Image.Image):
@@ -25,33 +25,27 @@ def query_hf_api(image: Image.Image):
         "Content-Type": "image/jpeg"
     }
 
-    # Try standard API endpoint first
-    endpoints = [
-        API_URL,
-        f"https://api-inference.huggingface.co/pipeline/image-classification/{VIDEO_MODEL_ID}"
-    ]
+    urls = [API_URL]
     
     last_error = "Unknown"
-    for url in endpoints:
+    for url in urls:
         try:
             logger.info("Attempting video frame inference at %s", url)
             response = requests.post(url, headers=headers, data=data, timeout=15)
             
             if response.status_code == 200:
                 results = response.json()
-                if isinstance(results, dict) and "error" in results:
-                    last_error = results["error"]
-                    continue
+                logger.info("Video frame inference success.")
                 return results
             
-            last_error = f"{response.status_code}: {response.text[:100]}"
-            logger.warning("Video endpoint %s failed: %s", url, last_error)
+            last_error = f"Status {response.status_code}: {response.text[:200]}"
+            logger.error("Video frame inference failed: %s", last_error)
             
         except Exception as e:
             last_error = str(e)
             logger.error("Request to %s failed: %s", url, e)
 
-    raise ValueError(f"Video Inference Engine Failed for {VIDEO_MODEL_ID}. Last Error: {last_error}")
+    raise ValueError(f"Video Inference Engine Failed. Last Error: {last_error}")
 
 def temporary_video_file(video_bytes: bytes, suffix=".mp4"):
     """Privacy safe temporary file creation."""

@@ -6,14 +6,20 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Model for still images: umm-maybe (Highly reliable on HF Inference API)
-MODEL_ID = "umm-maybe/AI-image-detector"
+# Model for still images: prithivMLmods (Highly stable on HF Inference API)
+MODEL_ID = "prithivMLmods/Deep-Fake-Detector-Model"
 API_URL = f"https://api-inference.huggingface.co/models/{MODEL_ID}"
 
 def predict_image(image: Image.Image) -> float:
     """Hybrid Inference: Tries Cloud API first, falls back to Local Model if available."""
     
-    # 1. Try Cloud Inference API (Fastest if model is warm)
+    # Check for token (Safety Log)
+    if not settings.HF_API_TOKEN:
+        logger.warning("HF_API_TOKEN is missing! Inference may be restricted.")
+    else:
+        logger.info("HF_API_TOKEN is present (Length: %d)", len(settings.HF_API_TOKEN))
+
+    # 1. Try Cloud Inference API
     headers = {
         "Authorization": f"Bearer {settings.HF_API_TOKEN}",
         "Content-Type": "image/jpeg"
@@ -25,25 +31,27 @@ def predict_image(image: Image.Image) -> float:
     image.save(img_byte_arr, format='JPEG')
     data = img_byte_arr.getvalue()
 
-    urls = [
-        API_URL,
-        f"https://api-inference.huggingface.co/pipeline/image-classification/{MODEL_ID}"
-    ]
+    urls = [API_URL]
     
     for url in urls:
         try:
             logger.info("Attempting Cloud Inference at %s", url)
-            response = requests.post(url, headers=headers, data=data, timeout=12)
+            response = requests.post(url, headers=headers, data=data, timeout=15)
+            
             if response.status_code == 200:
                 results = response.json()
+                logger.info("Cloud Inference Success. Result: %s", results)
+                # Parse results (Expected format: list of dicts with label/score)
                 for item in results:
                     label = item.get("label", "").lower()
                     if any(kw in label for kw in ("fake", "ai", "artificial", "generated")):
                         return float(item["score"])
                 return float(results[0]["score"])
-            logger.warning("Cloud Inference failed at %s (%s)", url, response.status_code)
+            
+            logger.error("Cloud Inference Failed. URL: %s, Status: %d, Response: %s", 
+                         url, response.status_code, response.text[:500])
         except Exception as e:
-            logger.warning("Network error at %s: %s", url, e)
+            logger.error("Network error during inference at %s: %s", url, e)
 
     # 2. Fallback to Local Model (If transformers is installed)
     logger.info("Cloud Inference unavailable. Attempting Local fallback for %s...", MODEL_ID)
