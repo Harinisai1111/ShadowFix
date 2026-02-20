@@ -62,42 +62,34 @@ app = FastAPI(
     redoc_url="/api/redoc"
 )
 
-# --- Middlewares & Security ---
+# --- Initial Middlewares & Security ---
 
-# 1. Global Request Logger
+# 1. Standard CORS Setup (First Middleware added = Outermost)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 2. Global Request Logger (Detailed for Debugging)
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    logger.info("Incoming: %s %s", request.method, request.url.path)
-    response = await call_next(request)
-    logger.info("Outgoing: %s (Status %s)", request.url.path, response.status_code)
-    return response
-
-# 2. Rate Limiting
-init_app_limiter(app)
-
-# 3. Robust CORS Middleware (Manual fallback for Cloud Deployments)
-@app.middleware("http")
-async def add_cors_headers(request: Request, call_next):
-    # Handle Preflight OPTIONS requests
-    if request.method == "OPTIONS":
-        response = JSONResponse(
-            content="OK",
-            status_code=200,
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, DELETE",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Max-Age": "86400",
-            }
-        )
+    logger.info(">>> REQUEST START: %s %s (Headers: %s)", request.method, request.url.path, dict(request.headers))
+    try:
+        response = await call_next(request)
+        logger.info("<<< REQUEST END: %s (Status %s)", request.url.path, response.status_code)
         return response
+    except Exception as e:
+        logger.error("!!! MIDDLEWARE ERROR: %s", str(e), exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal Middleware Error"}
+        )
 
-    # Handle actual requests
-    response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT, DELETE"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    return response
+# 3. Rate Limiting
+init_app_limiter(app)
 
 # --- Standardized Error Handling ---
 @app.exception_handler(ValueError)
