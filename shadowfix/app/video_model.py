@@ -1,3 +1,4 @@
+import requests
 import logging
 import io
 import os
@@ -5,43 +6,45 @@ import tempfile
 import gc
 import cv2
 from PIL import Image
-from huggingface_hub import InferenceClient
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Video frame model (Highly stable)
+# Model Configuration
 VIDEO_MODEL_ID = "dima806/deepfake_vs_real_image_detection"
+VIDEO_API_URL = f"https://api-inference.huggingface.co/models/{VIDEO_MODEL_ID}"
 
 def query_hf_api(image: Image.Image):
-    """Internal helper for HF API frame classification using InferenceClient with aggressive sanitization."""
+    """Internal helper for HF API frame classification using direct requests."""
     
     # Aggressive Token Sanitization
     raw_token = settings.HF_API_TOKEN or ""
     sanitized_token = "".join(raw_token.split()).replace('"', '').replace("'", "")
     
     try:
-        client = InferenceClient(model=VIDEO_MODEL_ID, token=sanitized_token)
-        
         buffered = io.BytesIO()
         image.save(buffered, format="JPEG")
         
-        logger.info("Requesting video frame inference for %s with explicit Content-Type", VIDEO_MODEL_ID)
+        logger.info("Requesting video frame inference for %s via direct HTTP POST", VIDEO_MODEL_ID)
         
-        # Call API DIRECTLY with Content-Type header to fix the 400 error
-        import json
-        response = client.post(
-            data=buffered.getvalue(),
-            headers={"Content-Type": "image/jpeg"}
-        )
+        headers = {
+            "Authorization": f"Bearer {sanitized_token}",
+            "Content-Type": "image/jpeg"
+        }
         
-        results = json.loads(response.decode())
+        response = requests.post(VIDEO_API_URL, headers=headers, data=buffered.getvalue())
+        
+        if response.status_code != 200:
+            logger.error("Video Frame API Failed (%d): %s", response.status_code, response.text)
+            return None
+            
+        results = response.json()
         logger.info("Video frame inference success.")
         return results
             
     except Exception as e:
-        logger.error("Video Inference Error (InferenceClient): %s", str(e), exc_info=True)
-        raise ValueError(f"Video Inference Engine Failed: {str(e)}")
+        logger.error("Video Inference Error: %s", str(e), exc_info=True)
+        return None
 
 def temporary_video_file(video_bytes: bytes, suffix=".mp4"):
     """Privacy safe temporary file creation."""
