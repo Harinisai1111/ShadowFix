@@ -64,28 +64,39 @@ app = FastAPI(
 
 # --- Initial Middlewares & Security ---
 
-# 1. Standard CORS Setup (First Middleware added = Outermost)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# 2. Global Request Logger (Detailed for Debugging)
 @app.middleware("http")
-async def log_requests(request: Request, call_next):
-    logger.info(">>> REQUEST START: %s %s (Headers: %s)", request.method, request.url.path, dict(request.headers))
+async def unified_middleware(request: Request, call_next):
+    # 1. HIGH VISIBILITY LOGGING
+    logger.info(">>> [PORT CHECK] Incoming %s %s", request.method, request.url.path)
+    
+    # 2. MANUAL CORS PREFLIGHT (Bypass standard middleware for reliability)
+    if request.method == "OPTIONS":
+        return JSONResponse(
+            content="CORS_PREFLIGHT_OK",
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "*",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Max-Age": "86400",
+            }
+        )
+
+    # 3. ACTUAL REQUEST EXECUTION
     try:
         response = await call_next(request)
-        logger.info("<<< REQUEST END: %s (Status %s)", request.url.path, response.status_code)
+        # 4. INJECT CORS HEADERS INTO EVERY RESPONSE
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        logger.info("<<< [PORT CHECK] Outgoing %s (Status %s)", request.url.path, response.status_code)
         return response
     except Exception as e:
-        logger.error("!!! MIDDLEWARE ERROR: %s", str(e), exc_info=True)
+        logger.error("!!! CRITICAL ERROR: %s", str(e), exc_info=True)
         return JSONResponse(
             status_code=500,
-            content={"error": "Internal Middleware Error"}
+            content={"error": "Server Internal Error during processing"},
+            headers={"Access-Control-Allow-Origin": "*"}
         )
 
 # 3. Rate Limiting
