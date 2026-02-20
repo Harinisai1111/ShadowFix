@@ -75,12 +75,17 @@ async def log_requests(request: Request, call_next):
 # 2. Rate Limiting
 init_app_limiter(app)
 
-# 3. CORS Setup (Outermost)
+# 3. CORS Setup (Outermost Layer)
+# Added last to ensure it's the first to handle requests and last to handle responses
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_origins=[
+        "https://shadow-fix.vercel.app",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
