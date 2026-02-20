@@ -62,19 +62,30 @@ app = FastAPI(
     redoc_url="/api/redoc"
 )
 
-# 1. CORS Setup (Outermost)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,  # Set to False when allow_origins=["*"]
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# --- Middlewares & Security ---
+
+# 1. Global Request Logger
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info("Incoming: %s %s", request.method, request.url.path)
+    response = await call_next(request)
+    logger.info("Outgoing: %s (Status %s)", request.url.path, response.status_code)
+    return response
 
 # 2. Rate Limiting
 init_app_limiter(app)
 
-# 4. Standardized Error Handling
+# 3. CORS Setup (Added LAST to be OUTERMOST)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
+
+# --- Standardized Error Handling ---
 @app.exception_handler(ValueError)
 async def value_error_handler(request: Request, exc: ValueError):
     """Specific handler for validation or data errors (400)."""
