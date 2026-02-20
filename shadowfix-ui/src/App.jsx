@@ -96,7 +96,9 @@ const Analyzer = () => {
         try {
             const token = await getToken();
             const endpoint = mode === 'image' ? '/analyze-image' : '/analyze-video';
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            // Clean trailing slash if exists
+            apiUrl = apiUrl.replace(/\/$/, '');
             const response = await fetch(`${apiUrl}${endpoint}`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },

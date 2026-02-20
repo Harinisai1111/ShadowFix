@@ -153,7 +153,8 @@ const WebcamAnalyzer = () => {
                         const token = await getToken();
                         const formData = new FormData();
                         formData.append('file', blob, 'live_frame.jpg');
-                        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+                        let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+                        apiUrl = apiUrl.replace(/\/$/, '');
                         const response = await fetch(`${apiUrl}/analyze-image`, {
                             method: 'POST',
                             headers: { 'Authorization': `Bearer ${token}` },
@@ -181,7 +182,8 @@ const WebcamAnalyzer = () => {
 
         try {
             const token = await getToken();
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            apiUrl = apiUrl.replace(/\/$/, '');
             const endpoint = type === 'image' ? '/analyze-image' : '/analyze-video';
             const response = await fetch(`${apiUrl}${endpoint}`, {
                 method: 'POST',
