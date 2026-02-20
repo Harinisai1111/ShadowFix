@@ -62,39 +62,30 @@ app = FastAPI(
     redoc_url="/api/redoc"
 )
 
-# --- CORS Setup ---
-# Define allowed origins for production
-ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "https://shadow-fix.vercel.app",
-    "https://shadowfix.vercel.app"
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-)
-
 # --- Security & Rate Limiting ---
 init_app_limiter(app)
 
 @app.middleware("http")
 async def apply_security_headers(request: Request, call_next):
-    # Skip security headers for OPTIONS preflight (let CORSMiddleware handle it)
+    # Let CORSMiddleware (added below) handle preflights purely
     if request.method == "OPTIONS":
         return await call_next(request)
         
     try:
         response = await call_next(request)
-        # Ensure CORS headers from CORSMiddleware aren't lost
         return add_security_headers(response)
     except Exception as exc:
         raise exc
+
+# --- CORS Setup (Added LAST to be processed FIRST on requests) ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Temporarily open to debug preflight blocking
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
 
 # 4. Standardized Error Handling
 @app.exception_handler(ValueError)
