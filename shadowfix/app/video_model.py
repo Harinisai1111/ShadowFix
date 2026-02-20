@@ -14,11 +14,11 @@ logger = logging.getLogger(__name__)
 VIDEO_MODEL_ID = "dima806/deepfake_vs_real_image_detection"
 
 def query_hf_api(image: Image.Image):
-    """Internal helper for HF API frame classification using InferenceClient with sanitization."""
+    """Internal helper for HF API frame classification using InferenceClient with aggressive sanitization."""
     
-    # Robust Token Sanitization
+    # Aggressive Token Sanitization
     raw_token = settings.HF_API_TOKEN or ""
-    sanitized_token = raw_token.strip().replace('"', '').replace("'", "")
+    sanitized_token = "".join(raw_token.split()).replace('"', '').replace("'", "")
     
     try:
         client = InferenceClient(model=VIDEO_MODEL_ID, token=sanitized_token)

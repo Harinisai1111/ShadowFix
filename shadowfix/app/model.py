@@ -10,11 +10,12 @@ logger = logging.getLogger(__name__)
 MODEL_ID = "dima806/deepfake_vs_real_image_detection"
 
 def predict_image(image: Image.Image) -> float:
-    """Uses official HF InferenceClient with strict token sanitization."""
+    """Uses official HF InferenceClient with AGGRESSIVE token sanitization."""
     
-    # 1. Robust Token Sanitization
+    # 1. Aggressive Token Sanitization (Removes all whitespace, quotes, and junk)
     raw_token = settings.HF_API_TOKEN or ""
-    sanitized_token = raw_token.strip().replace('"', '').replace("'", "")
+    # "".join(raw_token.split()) removes ALL spaces, newlines, and tabs anywhere in the string
+    sanitized_token = "".join(raw_token.split()).replace('"', '').replace("'", "")
     
     # EXTRA LOUD DIAGNOSTICS
     logger.info("***********************************************")
