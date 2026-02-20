@@ -8,6 +8,12 @@ logger = logging.getLogger(__name__)
 
 # Sanitized Token
 HF_TOKEN = settings.HF_API_TOKEN.strip() if settings.HF_API_TOKEN else ""
+if HF_TOKEN:
+    # Safe logging for debugging format issues
+    safe_token = f"{HF_TOKEN[:4]}...{HF_TOKEN[-4:]}"
+    logger.info("HF_API_TOKEN detected: %s (Length: %d)", safe_token, len(HF_TOKEN))
+else:
+    logger.warning("HF_API_TOKEN is empty!")
 
 # Model for still images (Using a highly stable official client)
 MODEL_ID = "dima806/deepfake_vs_real_image_detection"
