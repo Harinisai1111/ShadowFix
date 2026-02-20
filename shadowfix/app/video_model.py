@@ -26,9 +26,16 @@ def query_hf_api(image: Image.Image):
         buffered = io.BytesIO()
         image.save(buffered, format="JPEG")
         
-        logger.info("Requesting video frame inference for %s via InferenceClient", VIDEO_MODEL_ID)
-        results = client.image_classification(buffered.getvalue())
+        logger.info("Requesting video frame inference for %s with explicit Content-Type", VIDEO_MODEL_ID)
         
+        # Call API DIRECTLY with Content-Type header to fix the 400 error
+        import json
+        response = client.post(
+            data=buffered.getvalue(),
+            headers={"Content-Type": "image/jpeg"}
+        )
+        
+        results = json.loads(response.decode())
         logger.info("Video frame inference success.")
         return results
             

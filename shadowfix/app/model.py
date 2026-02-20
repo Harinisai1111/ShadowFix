@@ -38,11 +38,16 @@ def predict_image(image: Image.Image) -> float:
             image = image.convert("RGB")
         image.save(img_byte_arr, format='JPEG')
         
-        logger.info("Requesting inference for %s via InferenceClient", MODEL_ID)
+        logger.info("Requesting inference for %s with explicit Content-Type", MODEL_ID)
         
-        # 3. Call API
-        results = client.image_classification(img_byte_arr.getvalue())
+        # 3. Call API DIRECTLY with Content-Type header to fix the 400 error
+        import json
+        response = client.post(
+            data=img_byte_arr.getvalue(),
+            headers={"Content-Type": "image/jpeg"}
+        )
         
+        results = json.loads(response.decode())
         logger.info("Inference Results: %s", results)
         
         # 4. Parse Results
