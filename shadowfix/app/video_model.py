@@ -138,6 +138,10 @@ def predict_video(video_bytes: bytes, suffix=".mp4"):
                     if not results or not isinstance(results, list): continue
                     
                     logger.info("Frame %d Results: %s", i, results)
+                    FAKE_KEYWORDS = ("fake", "ai", "artificial", "generated")
+                    REAL_KEYWORDS = ("real", "human", "authentic", "natural")
+                    
+                    logger.info("Frame %d Results: %s", i, results)
                     found = False
                     # Try FAKE keywords
                     for item in results:
