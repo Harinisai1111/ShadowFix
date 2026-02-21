@@ -54,31 +54,38 @@ def predict_image(image: Image.Image) -> float:
         logger.info(results)
         logger.info("---------------------------")
         
-        # 5. Parse Results with Hardened Mapping
+        # 5. Parse Results with Top-Label Guard (v3)
         if not results or not isinstance(results, list):
             raise ValueError(f"Invalid API response style: {results}")
 
-        FAKE_KEYWORDS = ("fake", "ai", "artificial", "generated")
-        REAL_KEYWORDS = ("real", "human", "authentic", "natural")
+        FAKE_KEYWORDS = ("fake", "ai", "artificial", "generated", "deepfake")
+        REAL_KEYWORDS = ("real", "human", "authentic", "natural", "realism")
         
-        # Try to find an explicit FAKE label first
+        top_result = results[0]
+        top_label = top_result.get("label", "").lower()
+        top_score = float(top_result.get("score", 0))
+        
+        logger.info("TOP PREDICTION: %s (%f)", top_label, top_score)
+        
+        # RULE 1: If the most confident label is REAL, the image is REAL.
+        # We return the "inverse" score to keep probability low.
+        if any(kw in top_label for kw in REAL_KEYWORDS):
+            fake_prob = 1.0 - top_score
+            logger.info("Dominant label is REAL. Forensic fake prob: %f", fake_prob)
+            return fake_prob
+            
+        # RULE 2: If the most confident label is FAKE, that is our score.
+        if any(kw in top_label for kw in FAKE_KEYWORDS):
+            logger.info("Dominant label is FAKE. Forensic fake prob: %f", top_score)
+            return top_score
+            
+        # FALLBACK: If top label is ambiguous, check other results for keywords
         for item in results:
             label = item.get("label", "").lower()
             if any(kw in label for kw in FAKE_KEYWORDS):
-                logger.info("Matched FAKE-positive label: %s (score: %f)", label, item["score"])
                 return float(item["score"])
         
-        # If no fake label found, check for REAL label to calculate (1 - real_score)
-        for item in results:
-            label = item.get("label", "").lower()
-            if any(kw in label for kw in REAL_KEYWORDS):
-                fake_prob = 1.0 - float(item["score"])
-                logger.info("Matched REAL-negative label: %s (score: %f) -> Computed fake prob: %f", label, item["score"], fake_prob)
-                return fake_prob
-        
-        # Fallback to the first result as a generic probability
-        logger.warning("No forensic keywords matched. Falling back to primary result score.")
-        return float(results[0]["score"])
+        return top_score
 
     except Exception as e:
         logger.error("Direct Inference Error: %s", str(e), exc_info=True)
