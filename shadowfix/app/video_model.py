@@ -11,7 +11,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 # Model Configuration
-VIDEO_MODEL_ID = "prithivMLmods/Deep-Fake-Detector-v2-Model"
+VIDEO_MODEL_ID = "prithivMLmods/open-deepfake-detection"
 VIDEO_API_URL = f"https://router.huggingface.co/hf-inference/models/{VIDEO_MODEL_ID}"
 
 def query_hf_api(image: Image.Image):
