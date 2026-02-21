@@ -54,6 +54,6 @@ def classify_risk(prob: float):
     """
     if prob > 0.7:
         return "HIGH", True
-    if prob >= 0.2:
+    if prob >= 0.5:
         return "MEDIUM", True
     return "LOW", False
