@@ -7,7 +7,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 # Model Configuration
-MODEL_ID = "prithivMLmods/open-deepfake-detection"
+MODEL_ID = "prithivMLmods/Deep-Fake-Detector-v2-Model"
 API_URL = f"https://router.huggingface.co/hf-inference/models/{MODEL_ID}"
 
 def predict_image(image: Image.Image) -> float:

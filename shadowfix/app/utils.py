@@ -52,8 +52,8 @@ def classify_risk(prob: float):
     Forensic Risk Classification.
     Tuned for high sensitivity (Forensic Expert Mode).
     """
-    if prob > 0.75:
+    if prob > 0.95:  # Forensic Certainty Mode
         return "HIGH", True
-    if prob >= 0.5:
+    if prob >= 0.90:
         return "MEDIUM", False
     return "LOW", False
