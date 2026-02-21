@@ -48,9 +48,12 @@ def bytes_to_pil(data: bytes) -> Image.Image:
         raise ValueError("Corrupted or invalid image data.")
 
 def classify_risk(prob: float):
-    """Risk classification logic."""
+    """
+    Forensic Risk Classification.
+    Tuned for high sensitivity (Forensic Expert Mode).
+    """
     if prob > 0.7:
         return "HIGH", True
-    if prob >= 0.4:
+    if prob >= 0.3:
         return "MEDIUM", True
     return "LOW", False

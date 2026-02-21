@@ -50,17 +50,34 @@ def predict_image(image: Image.Image) -> float:
             raise ValueError(f"Hugging Face API Error ({response.status_code}): {error_msg}")
 
         results = response.json()
-        logger.info("Inference Results: %s", results)
+        logger.info("--- INF ENGINE RAW DATA ---")
+        logger.info(results)
+        logger.info("---------------------------")
         
-        # 5. Parse Results
+        # 5. Parse Results with Hardened Mapping
         if not results or not isinstance(results, list):
             raise ValueError(f"Invalid API response style: {results}")
 
+        FAKE_KEYWORDS = ("fake", "ai", "artificial", "generated")
+        REAL_KEYWORDS = ("real", "human", "authentic", "natural")
+        
+        # Try to find an explicit FAKE label first
         for item in results:
             label = item.get("label", "").lower()
-            if any(kw in label for kw in ("fake", "ai", "artificial", "generated")):
+            if any(kw in label for kw in FAKE_KEYWORDS):
+                logger.info("Matched FAKE-positive label: %s (score: %f)", label, item["score"])
                 return float(item["score"])
         
+        # If no fake label found, check for REAL label to calculate (1 - real_score)
+        for item in results:
+            label = item.get("label", "").lower()
+            if any(kw in label for kw in REAL_KEYWORDS):
+                fake_prob = 1.0 - float(item["score"])
+                logger.info("Matched REAL-negative label: %s (score: %f) -> Computed fake prob: %f", label, item["score"], fake_prob)
+                return fake_prob
+        
+        # Fallback to the first result as a generic probability
+        logger.warning("No forensic keywords matched. Falling back to primary result score.")
         return float(results[0]["score"])
 
     except Exception as e:

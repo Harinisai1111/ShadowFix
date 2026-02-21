@@ -105,6 +105,7 @@ def predict_video(video_bytes: bytes, suffix=".mp4"):
 
     # 2. Forensic Loop
     FAKE_KEYWORDS = ("fake", "ai", "artificial", "generated")
+    REAL_KEYWORDS = ("real", "human", "authentic", "natural")
     
     try:
         if use_local:
@@ -114,11 +115,22 @@ def predict_video(video_bytes: bytes, suffix=".mp4"):
             
             for i, frame in enumerate(frames):
                 results = predict_video._local_pipe(frame)
+                found = False
+                # Try FAKE keywords
                 for item in results:
                     label = item["label"].lower()
                     if any(kw in label for kw in FAKE_KEYWORDS):
                         scores.append(item["score"])
+                        found = True
                         break
+                # Try REAL keywords if no fake found
+                if not found:
+                    for item in results:
+                        label = item["label"].lower()
+                        if any(kw in label for kw in REAL_KEYWORDS):
+                            scores.append(1.0 - float(item["score"]))
+                            found = True
+                            break
         else:
             for i, frame in enumerate(frames):
                 try:
@@ -126,11 +138,22 @@ def predict_video(video_bytes: bytes, suffix=".mp4"):
                     if not results or not isinstance(results, list): continue
                     
                     logger.info("Frame %d Results: %s", i, results)
+                    found = False
+                    # Try FAKE keywords
                     for item in results:
                         label = item.get("label", "").lower()
                         if any(kw in label for kw in FAKE_KEYWORDS):
                             scores.append(item["score"])
+                            found = True
                             break
+                    # Try REAL keywords if no fake found
+                    if not found:
+                        for item in results:
+                            label = item.get("label", "").lower()
+                            if any(kw in label for kw in REAL_KEYWORDS):
+                                scores.append(1.0 - float(item["score"]))
+                                found = True
+                                break
                 except Exception as e:
                     logger.error("Frame %d Error: %s", i, e)
                     continue
